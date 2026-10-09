@@ -95,6 +95,21 @@ Deployed on Vercel — no setup needed:
 Append `?url=` to test a target directly, e.g.
 `…/clickjacking-test.html?url=https://example.com`.
 
+## Demo lab (framable vs protected)
+
+A second deployed site for testing against: **https://cj-lab-sand.vercel.app/**
+
+- `/victim.html` — intentionally **framable** (no anti-framing headers).
+- `/protected.html` — sends `X-Frame-Options: DENY` + `CSP frame-ancestors 'none'`
+  (set in `demo/vercel.json`), so it **stays blank** in a frame.
+
+The index embeds both side by side and links to the checker with `?url=`
+pre-filled. Point the checker at each to see the difference — the framable page
+renders, the protected one does not. (Cross-origin, the checker cannot confirm
+this programmatically; a blank frame vs a rendered one is the signal.)
+
+Source: `demo/` (`index.html`, `victim.html`, `protected.html`, `vercel.json`).
+
 ## Test it (locally)
 
 Serve the folder over http(s) (framing `file://` pages is blocked):

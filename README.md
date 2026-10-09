@@ -6,6 +6,7 @@ A drop-in guard and a URL checker in [`clickjacking/`](./clickjacking/). See its
 [README](./clickjacking/README.md) for usage and the server-side fix.
 
 Live demo: https://cj-deploy.vercel.app/clickjacking/clickjacking-test.html
+Test lab (framable vs protected): https://cj-lab-sand.vercel.app/
 
 ## PDF attack tests
 
