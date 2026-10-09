@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clickjacking — target harness (any site)</title>
+
+<!--
+  ============================================================================
+  CLICKJACKING TARGET HARNESS — point it at ANY site
+  ----------------------------------------------------------------------------
+  Two modes, chosen by the input at the top:
+
+    A) TARGET A REMOTE / THIRD-PARTY SITE  (e.g. https://example.com)
+       You cannot inject a detector into a site you don't control, so this
+       page does the only thing a browser allows cross-origin: it frames the
+       target and checks whether the frame actually rendered. If the target
+       sends X-Frame-Options / CSP frame-ancestors, the browser refuses and the
+       frame stays blank. A visible frame => "likely framable". This is the
+       best-effort signal; confirm visually.
+
+    B) TARGET A PAGE THAT RUNS clickjacking-guard.js  (same-origin, e.g.
+       clickjacking-detect.html served from this folder)
+       Here you get the full picture: the framed page reports "Framed: YES"
+       and paints its own warning overlay.
+
+  Run with a local server (file:// framing is blocked by most browsers):
+        python3 -m http.server 8080
+        open "http://localhost:8080/clickjacking-attacker-demo.html?target=https://example.com"
+
+  CHANGE THE TARGET: type a URL in the box, or append ?target=<url>.
+  ============================================================================
+-->
+
+<style>
+  :root { --border:#30363d; --fg:#e6edf3; --muted:#8b949e; --accent:#58a6ff; }
+  * { box-sizing: border-box; }
+  body {
+    margin:0; padding:2rem;
+    font:15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background:#0d1117; color:var(--fg);
+  }
+  h1 { font-size:1.3rem; margin:0 0 .25rem; }
+  h2 { font-size:.95rem; text-transform:uppercase; letter-spacing:.05em;
+       color:var(--muted); margin:1.75rem 0 .6rem; }
+  .sub { color:var(--muted); font-size:.9rem; margin:0 0 1.25rem; }
+  code { background:#161b22; padding:.1rem .35rem; border-radius:4px; font-size:.85em; }
+
+  .controls { display:flex; gap:.5rem; margin:0 auto 1rem; max-width:860px; }
+  .controls input {
+    flex:1; font:inherit; padding:.6rem .8rem; border-radius:8px;
+    border:1px solid var(--border); background:#0d1117; color:var(--fg);
+  }
+  .controls button {
+    font:inherit; padding:.6rem 1rem; border-radius:8px; cursor:pointer;
+    border:1px solid var(--border); background:#238636; color:#fff; font-weight:600;
+  }
+  .controls button.ghost { background:#21262d; font-weight:400; }
+  .controls button:hover { filter:brightness(1.1); }
+
+  #verdict {
+    max-width:860px; margin:0 auto 1rem; padding:.75rem 1rem;
+    border-radius:8px; font-weight:700; border:1px solid var(--border);
+    background:#161b22;
+  }
+  #verdict.pending { color:var(--muted); font-weight:400; }
+  #verdict.framable { color:#f85149; border-color:#f85149; }
+  #verdict.blocked  { color:#3fb950; border-color:#3fb950; }
+
+  /* ---- stage : victim frame + transparent decoy ---- */
+  .stage {
+    position: relative; width:860px; max-width:100%; height:460px;
+    margin:0 auto; border:1px solid var(--border); border-radius:10px;
+    overflow:hidden; background:#010409;
+  }
+  .stage iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .stage iframe.dim { opacity:.35; }   /* only for mode B; real attack uses 0 */
+  .decoy {
+    position:absolute; inset:0; pointer-events:none;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(13,17,23,.45);
+  }
+  .decoy .fake-btn {
+    padding:1rem 2.2rem; border-radius:10px; background:#238636; color:#fff;
+    font-weight:700; font-size:1.05rem; box-shadow:0 6px 24px rgba(0,0,0,.5);
+  }
+  .note { max-width:860px; margin:1rem auto 0; color:var(--muted); font-size:.85rem; }
+  pre { max-width:860px; margin:.5rem auto; background:#010409; border:1px solid var(--border);
+        border-radius:8px; padding:.8rem; overflow:auto; font-size:.8rem; color:#c9d1d9; }
+</style>
+</head>
+<body>
+
+<h1>Clickjacking — target harness</h1>
+<p class="sub">
+  Frames any URL and reports whether it appears framable. Best-effort for
+  cross-origin targets; full report when the target ships
+  <code>clickjacking-guard.js</code>.
+</p>
+
+<div class="controls">
+  <input id="target" type="url" placeholder="https://example.com" spellcheck="false">
+  <button id="btn-go">Frame it</button>
+  <button id="btn-local" class="ghost">Use local detector</button>
+</div>
+
+<div id="verdict" class="pending">Enter a target URL and press “Frame it”.</div>
+
+<div class="stage">
+  <iframe id="victim" title="target"></iframe>
+  <!-- Transparent decoy: pointer-events:none lets clicks fall through to the
+       framed page underneath. A real attack aligns .fake-btn over a real
+       control on the victim. -->
+  <div class="decoy"><div class="fake-btn">▶ Play video</div></div>
+</div>
+
+<p class="note" id="hint">
+  <strong>Reading the result.</strong> If the framed page is visible, it very
+  likely lacks anti-framing headers. If it stays blank, the browser blocked it
+  (the target is protected). Cross-origin script cannot confirm this, so trust
+  your eyes + the DevTools console (a “Refused to display …” message = blocked).
+</p>
+
+<h2>Fix it — server header recipes</h2>
+<pre># nginx
+add_header X-Frame-Options "DENY" always;
+add_header Content-Security-Policy "frame-ancestors 'none'" always;
+
+# Apache (.htaccess)
+Header always set X-Frame-Options "DENY"
+Header always set Content-Security-Policy "frame-ancestors 'none'"
+
+# Express / Node
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
+  next();
+});
+
+# Next.js (next.config.js)
+headers: async () => [{
+  source: '/(.*)',
+  headers: [
+    { key: 'X-Frame-Options', value: 'DENY' },
+    { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" }
+  ]
+}]</pre>
+<p class="note">
+  Use <code>frame-ancestors 'self'</code> / <code>SAMEORIGIN</code> instead of
+  <code>'none'</code> / <code>DENY</code> if you legitimately embed your own
+  pages. <code>frame-ancestors</code> supersedes <code>X-Frame-Options</code> in
+  modern browsers — send both for legacy coverage.
+</p>
+
+<script>
+/* ---------------------------------------------------------------------------
+ * Target harness logic.
+ * ------------------------------------------------------------------------- */
+(function () {
+  'use strict';
+
+  var input   = document.getElementById('target');
+  var victim  = document.getElementById('victim');
+  var verdict = document.getElementById('verdict');
+
+  // Default target: the local detector page (shows the full guard report).
+  var LOCAL_TARGET = 'clickjacking-detect.html';
+
+  // Pre-fill from ?target=... so the page is scriptable / bookmarkable.
+  var params = new URLSearchParams(location.search);
+  input.value = params.get('target') || LOCAL_TARGET;
+
+  function frame(url) {
+    verdict.className = 'pending';
+    verdict.textContent = 'Loading ' + url + ' …';
+
+    // Dim the frame only when it is the local detector, so you can see its
+    // own warning overlay. For a real target we leave it fully opaque.
+    var isLocal = url.indexOf('http') !== 0;
+    victim.className = isLocal ? 'dim' : '';
+
+    var settled = false;
+
+    // Cross-origin we cannot inspect the frame, so use onload as a weak signal.
+    // A protection header makes the browser fire onload on an *empty* document
+    // too, so onload alone is not proof — we combine it with the manual note.
+    victim.onload = function () {
+      if (settled) return;
+      settled = true;
+      if (isLocal) {
+        verdict.className = 'framable';
+        verdict.textContent = 'Local target loaded — check the framed page; it should self-report “Framed: YES”.';
+      } else {
+        verdict.className = 'framable';
+        verdict.textContent =
+          'Frame finished loading. If content is visible the target is likely FRAMABLE. ' +
+          'A blank frame means it is protected (headers) — confirm in DevTools.';
+      }
+    };
+    victim.onerror = function () {
+      settled = true;
+      verdict.className = 'blocked';
+      verdict.textContent = 'Frame failed to load — target may be unreachable or blocked.';
+    };
+
+    // Timeout guard: cross-origin may never fire a useful event.
+    setTimeout(function () {
+      if (settled) return;
+      settled = true;
+      verdict.className = 'pending';
+      verdict.textContent =
+        'No load event after 8s. The target may be blocked by headers or slow — check visually.';
+    }, 8000);
+
+    victim.src = url;
+  }
+
+  document.getElementById('btn-go').addEventListener('click', function () {
+    var url = input.value.trim();
+    if (url) frame(url);
+  });
+  document.getElementById('btn-local').addEventListener('click', function () {
+    input.value = LOCAL_TARGET;
+    frame(LOCAL_TARGET);
+  });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') document.getElementById('btn-go').click();
+  });
+
+  // Auto-frame whatever is pre-filled.
+  if (input.value) frame(input.value);
+})();
+</script>
+</body>
+</html>
