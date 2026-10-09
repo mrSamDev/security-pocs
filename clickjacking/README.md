@@ -27,6 +27,33 @@ Put `clickjacking-guard.js` in your site and load it in the `<head>`:
 
 API: `ClickjackGuard.run()`, `ClickjackGuard.isFramed()`.
 
+## Load from a CDN (optional)
+
+Self-hosting the file is recommended (no third-party dependency). If you'd
+rather not copy it, jsDelivr serves it with the correct `application/javascript`
+MIME type:
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/mrSamDev/security-pocs@main/clickjacking/clickjacking-guard.js" defer></script>
+```
+
+Pin a commit or tag instead of `@main` so the file can't change underneath you:
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/mrSamDev/security-pocs@4b54590/clickjacking/clickjacking-guard.js" defer></script>
+```
+
+### Why not the GitHub URLs?
+
+Both of these **cannot** be used as `<script src>` — the browser refuses to
+execute them because of the wrong MIME type + `X-Content-Type-Options: nosniff`:
+
+| URL | Served as | Result |
+|-----|-----------|--------|
+| `github.com/mrSamDev/security-pocs/blob/main/clickjacking/clickjacking-guard.js` | `text/html` | ❌ HTML page, not JS |
+| `raw.githubusercontent.com/mrSamDev/security-pocs/main/clickjacking/clickjacking-guard.js` | `text/plain` | ❌ "MIME type not executable" |
+| `cdn.jsdelivr.net/gh/mrSamDev/security-pocs@main/clickjacking/clickjacking-guard.js` | `application/javascript` | ✅ works |
+
 ## How it works
 
 `window.self !== window.top` is true whenever the page is framed. `window.self`
