@@ -5,9 +5,24 @@ A tiny script that checks on page load whether the page is being framed
 
 ## Use it
 
-Configure the guard first, then load it in the `<head>` — either from your own
-site (recommended) or from the jsDelivr CDN. The config block is identical for
-both.
+Configure the guard first, then load it in the `<head>`. The **jsDelivr CDN** is
+the quickest option; self-host if you prefer no third-party dependency. The
+config block is identical for both.
+
+**jsDelivr CDN (recommended):**
+
+```html
+<script>
+  window.ClickjackGuardConfig = {
+    bustOut: true,     // try to break out of the frame
+    showWarning: true, // show a warning overlay when framed
+    onCheck: function (isFramed) {
+      if (isFramed) alert('Clickjacking detected: this page is being framed!');
+    }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/gh/mrSamDev/security-pocs@main/clickjacking/clickjacking-guard.js" defer></script>
+```
 
 **Self-hosted** (copy `clickjacking-guard.js` into your site):
 
@@ -16,23 +31,12 @@ both.
   window.ClickjackGuardConfig = {
     bustOut: true,     // try to break out of the frame
     showWarning: true, // show a warning overlay when framed
-    onCheck: function (isFramed) { console.log('framed:', isFramed); }
+    onCheck: function (isFramed) {
+      if (isFramed) alert('Clickjacking detected: this page is being framed!');
+    }
   };
 </script>
 <script src="/clickjacking-guard.js" defer></script>
-```
-
-**From the jsDelivr CDN:**
-
-```html
-<script>
-  window.ClickjackGuardConfig = {
-    bustOut: true,     // try to break out of the frame
-    showWarning: true, // show a warning overlay when framed
-    onCheck: function (isFramed) { console.log('framed:', isFramed); }
-  };
-</script>
-<script src="https://cdn.jsdelivr.net/gh/mrSamDev/security-pocs@main/clickjacking/clickjacking-guard.js" defer></script>
 ```
 
 | Option | Default | Meaning |
