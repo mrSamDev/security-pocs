@@ -2,8 +2,10 @@
 
 ## Clickjacking
 
-A drop-in guard in [`clickjacking/`](./clickjacking/). See its
+A drop-in guard and a URL checker in [`clickjacking/`](./clickjacking/). See its
 [README](./clickjacking/README.md) for usage and the server-side fix.
+
+Live demo: https://cj-deploy.vercel.app/clickjacking/clickjacking-test.html
 
 ## PDF attack tests
 

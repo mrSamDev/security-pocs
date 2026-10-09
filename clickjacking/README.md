@@ -86,7 +86,16 @@ X-Frame-Options: DENY
 
 Use `frame-ancestors 'self'` / `SAMEORIGIN` instead if you embed your own pages.
 
-## Test it
+## Live demo
+
+Deployed on Vercel — no setup needed:
+
+**https://cj-deploy.vercel.app/clickjacking/clickjacking-test.html**
+
+Append `?url=` to test a target directly, e.g.
+`…/clickjacking-test.html?url=https://example.com`.
+
+## Test it (locally)
 
 Serve the folder over http(s) (framing `file://` pages is blocked):
 
