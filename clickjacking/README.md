@@ -110,6 +110,36 @@ this programmatically; a blank frame vs a rendered one is the signal.)
 
 Source: `demo/` (`index.html`, `victim.html`, `protected.html`, `vercel.json`).
 
+## Deployment
+
+Both sites are Vercel projects under `mrsamdevs-projects`:
+
+| Site | Stable URL | Vercel project → alias | Source |
+|------|-----------|------------------------|--------|
+| Checker | https://cj-deploy.vercel.app/clickjacking/clickjacking-test.html | `cj-deploy` → `cj-deploy.vercel.app` | `clickjacking-test.html` |
+| Lab | https://cj-lab-sand.vercel.app/ | `cj-lab` → `cj-lab-sand.vercel.app` | `demo/` |
+
+Redeploy after edits (staged in `/tmp` to keep the repo clean):
+
+```bash
+# checker
+rm -rf /tmp/cj-deploy && mkdir -p /tmp/cj-deploy/clickjacking
+cp clickjacking/clickjacking-test.html /tmp/cj-deploy/clickjacking/
+cd /tmp/cj-deploy && vercel deploy --prod --yes
+
+# lab
+rm -rf /tmp/cj-lab && cp -R clickjacking/demo /tmp/cj-lab
+cd /tmp/cj-lab && vercel deploy --prod --yes
+```
+
+Notes:
+
+- `cj-lab.vercel.app` was already taken, so the lab uses `cj-lab-sand.vercel.app`.
+- Raw `*-mrsamdevs-projects.vercel.app` deployment URLs sit behind Vercel SSO
+  protection — use the stable aliases above.
+- The lab's `/protected.html` headers come from `demo/vercel.json`; the checker
+  is self-contained (no external JS / no headers required).
+
 ## Test it (locally)
 
 Serve the folder over http(s) (framing `file://` pages is blocked):
