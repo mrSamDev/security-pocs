@@ -88,9 +88,17 @@ Use `frame-ancestors 'self'` / `SAMEORIGIN` instead if you embed your own pages.
 
 ## Test it
 
+Serve the folder over http(s) (framing `file://` pages is blocked):
+
 ```bash
 python3 -m http.server 8080
 ```
 
-Open the guard page directly (reports `framed: false`), or drop it into an
-`<iframe>` (reports `framed: true`).
+- **`clickjacking-test.html`** — stand-alone checker (no external JS): loads any
+  URL in a frame and reports whether it can be framed. Open
+  `http://localhost:8080/clickjacking/clickjacking-test.html`, or append
+  `?url=https://example.com` to test a target directly. Same-origin targets are
+  verified; cross-origin ones depend on what the browser exposes (see the
+  in-page notes).
+- **The guard page** — open it directly to get `framed: false`, or drop it into
+  an `<iframe>` to get `framed: true`.

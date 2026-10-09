@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clickjacking test — frame any URL</title>
+<!--
+  ============================================================================
+  CLICKJACKING TEST PAGE — single file, no external JS.
+  ----------------------------------------------------------------------------
+  Loads any URL in an <iframe> and reports whether it can be framed.
+
+  WHAT IT CHECKS
+    1. Frames the URL.
+    2. If the frame's document is readable (same-origin) -> FRAMABLE, verified.
+    3. Otherwise it is cross-origin: the browser hides whether the frame
+       rendered or was blocked, so we report "confirm visually" and, as a
+       bonus, try to read the anti-framing response headers via fetch()
+       (only works when the target sends Access-Control-Allow-Origin).
+
+  WHY IT CANNOT ALWAYS BE AUTOMATIC
+    A page may not read into a cross-origin frame, and fetch() only exposes
+    X-Frame-Options / Content-Security-Policy when CORS allows it. So for a
+    third-party site the reliable read is: look at the frame + the DevTools
+    console ("Refused to display ... in a frame because it set X-Frame-Options").
+
+  Serve over http(s) — most browsers refuse to frame file:// pages:
+      python3 -m http.server 8080
+      open http://localhost:8080/clickjacking/clickjacking-test.html
+  ============================================================================
+-->
+<style>
+  :root { --border:#30363d; --fg:#e6edf3; --muted:#8b949e;
+          --bg:#0d1117; --panel:#161b22; --pass:#3fb950; --fail:#f85149; --warn:#d29922; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:2rem; background:var(--bg); color:var(--fg);
+         font:15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  h1 { font-size:1.3rem; margin:0 0 .25rem; }
+  .sub { color:var(--muted); font-size:.9rem; margin:0 0 1.25rem; }
+  form { display:flex; gap:.5rem; margin-bottom:1rem; }
+  input { flex:1; font:inherit; padding:.6rem .8rem; border-radius:8px;
+          border:1px solid var(--border); background:var(--bg); color:var(--fg); }
+  button { font:inherit; padding:.6rem 1.1rem; border-radius:8px; cursor:pointer;
+           border:1px solid var(--border); background:#238636; color:#fff; font-weight:600; }
+  #result { padding:.75rem 1rem; border-radius:8px; border:1px solid var(--border);
+            background:var(--panel); font-weight:700; margin-bottom:.5rem; }
+  #result.pending { color:var(--muted); font-weight:400; }
+  #result.framable { color:var(--fail); border-color:var(--fail); }
+  #result.blocked  { color:var(--pass); border-color:var(--pass); }
+  #result.unknown  { color:var(--warn); border-color:var(--warn); }
+  #headers { color:var(--muted); font-family:ui-monospace,Menlo,monospace;
+             font-size:.82rem; margin-bottom:1rem; min-height:1.1em; }
+  .stage { width:100%; height:60vh; border:1px solid var(--border);
+           border-radius:10px; overflow:hidden; background:#010409; }
+  iframe { width:100%; height:100%; border:0; }
+  details { margin-top:1rem; color:var(--muted); font-size:.85rem; }
+  summary { cursor:pointer; }
+  code { background:var(--panel); padding:.1rem .35rem; border-radius:4px; }
+</style>
+</head>
+<body>
+
+<h1>Clickjacking test</h1>
+<p class="sub">Loads any URL in a frame and reports whether it can be framed.</p>
+
+<form id="form">
+  <input id="url" type="url" placeholder="https://example.com" spellcheck="false" required>
+  <button type="submit">Test</button>
+</form>
+
+<div id="result" class="pending">Enter a URL and press Test.</div>
+<div id="headers"></div>
+
+<div class="stage"><iframe id="frame" title="target"></iframe></div>
+
+<details>
+  <summary>How the result is determined + limits</summary>
+  <p style="margin:.6rem 0 0">
+    Same-origin targets are verified directly (the frame's document is
+    readable). For cross-origin targets the browser blocks all inspection, so a
+    visible frame is the proof — the browser refuses to render pages that send
+    <code>X-Frame-Options: DENY</code> / <code>Content-Security-Policy:
+    frame-ancestors 'none'</code>. Bonus: when the target allows CORS, its
+    anti-framing headers are read and shown above.
+  </p>
+</details>
+
+<script>
+(function () {
+  'use strict';
+
+  var form   = document.getElementById('form');
+  var input  = document.getElementById('url');
+  var frame  = document.getElementById('frame');
+  var result = document.getElementById('result');
+  var headers= document.getElementById('headers');
+
+  // Show a status line. cls is one of: pending | framable | blocked | unknown.
+  function setResult(cls, text) {
+    result.className = cls;
+    result.textContent = text;
+  }
+
+  // Pull the frame-ancestors directive out of a CSP header value.
+  function frameAncestors(csp) {
+    var parts = csp.split(';');
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i].trim();
+      if (p.toLowerCase().indexOf('frame-ancestors') === 0)
+        return p.replace(/^frame-ancestors\s*/i, '');
+    }
+    return null;
+  }
+
+  // Bonus check: read anti-framing headers. Only works same-origin or with CORS.
+  function checkHeaders(url) {
+    headers.textContent = '';
+    fetch(url, { method: 'GET', cache: 'no-store' })
+      .then(function (res) {
+        var xfo = res.headers.get('x-frame-options');
+        var csp = res.headers.get('content-security-policy');
+        var fa  = csp ? frameAncestors(csp) : null;
+        var bits = [];
+        if (xfo) bits.push('X-Frame-Options: ' + xfo);
+        if (fa)  bits.push('CSP frame-ancestors: ' + fa);
+        headers.textContent = bits.length
+          ? 'Headers: ' + bits.join(' | ')
+          : 'Headers: none sent — no X-Frame-Options / frame-ancestors.';
+      })
+      .catch(function () {
+        // Cross-origin without CORS: headers are not exposed to script.
+        headers.textContent = 'Headers: could not read (cross-origin, no CORS).';
+      });
+  }
+
+  function test(url) {
+    headers.textContent = '';
+    setResult('pending', 'Loading ' + url + ' …');
+
+    var settled = false;
+    function done(cls, text) {
+      if (settled) return;          // only the first outcome wins
+      settled = true;
+      setResult(cls, text);
+    }
+
+    frame.onload = function () {
+      // Same-origin? Then we can read the frame's document directly -> verified.
+      var doc = null;
+      try { doc = frame.contentDocument; } catch (e) { doc = null; }
+
+      if (doc) {
+        done('framable', 'FRAMABLE — same-origin, frame content is readable.');
+      } else {
+        // Cross-origin: cannot read it. A rendered page == framable; a page
+        // with anti-framing headers stays blank. Confirm visually + console.
+        done('unknown',
+          'Frame fired onload. Cross-origin content is not readable — if you ' +
+          'can see the page below, it is FRAMABLE.');
+      }
+      checkHeaders(url);
+    };
+
+    frame.onerror = function () {
+      done('blocked', 'Could not load the URL.');
+    };
+
+    // Fallback if no load event arrives (blocked or slow).
+    setTimeout(function () {
+      done('unknown', 'No load event after 8s — may be blocked or slow. Check visually.');
+    }, 8000);
+
+    frame.src = url;
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var url = input.value.trim();
+    if (url) test(url);
+  });
+
+  // Optional: pre-fill and run from ?url=...
+  var pre = new URLSearchParams(location.search).get('url');
+  if (pre) { input.value = pre; test(pre); }
+})();
+</script>
+</body>
+</html>
