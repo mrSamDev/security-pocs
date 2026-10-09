@@ -5,7 +5,11 @@ A tiny script that checks on page load whether the page is being framed
 
 ## Use it
 
-Put `clickjacking-guard.js` in your site and load it in the `<head>`:
+Configure the guard first, then load it in the `<head>` — either from your own
+site (recommended) or from the jsDelivr CDN. The config block is identical for
+both.
+
+**Self-hosted** (copy `clickjacking-guard.js` into your site):
 
 ```html
 <script>
@@ -18,6 +22,19 @@ Put `clickjacking-guard.js` in your site and load it in the `<head>`:
 <script src="/clickjacking-guard.js" defer></script>
 ```
 
+**From the jsDelivr CDN:**
+
+```html
+<script>
+  window.ClickjackGuardConfig = {
+    bustOut: true,     // try to break out of the frame
+    showWarning: true, // show a warning overlay when framed
+    onCheck: function (isFramed) { console.log('framed:', isFramed); }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/gh/mrSamDev/security-pocs@main/clickjacking/clickjacking-guard.js" defer></script>
+```
+
 | Option | Default | Meaning |
 |--------|---------|---------|
 | `bustOut` | `true` | Try to navigate the top window to this page. |
@@ -27,17 +44,10 @@ Put `clickjacking-guard.js` in your site and load it in the `<head>`:
 
 API: `ClickjackGuard.run()`, `ClickjackGuard.isFramed()`.
 
-## Load from a CDN (optional)
+## Load from a CDN (details)
 
-Self-hosting the file is recommended (no third-party dependency). If you'd
-rather not copy it, jsDelivr serves it with the correct `application/javascript`
-MIME type:
-
-```html
-<script src="https://cdn.jsdelivr.net/gh/mrSamDev/security-pocs@main/clickjacking/clickjacking-guard.js" defer></script>
-```
-
-Pin a commit or tag instead of `@main` so the file can't change underneath you:
+Self-hosting is recommended (no third-party dependency). If you use jsDelivr,
+pin a commit or tag instead of `@main` so the file can't change underneath you:
 
 ```html
 <script src="https://cdn.jsdelivr.net/gh/mrSamDev/security-pocs@4b54590/clickjacking/clickjacking-guard.js" defer></script>
