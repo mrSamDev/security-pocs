@@ -2,14 +2,8 @@
 
 ## Clickjacking
 
-Detector/guard + attacker harness live in [`clickjacking/`](./clickjacking/).
-See that folder's [README](./clickjacking/README.md) for usage, config, the
-server-side fix, and how it was verified.
-
-```bash
-python3 -m http.server 8080
-open http://localhost:8080/clickjacking/clickjacking-detect.html
-```
+A drop-in guard in [`clickjacking/`](./clickjacking/). See its
+[README](./clickjacking/README.md) for usage and the server-side fix.
 
 ## PDF attack tests
 
